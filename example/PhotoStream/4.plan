@@ -1,0 +1,122 @@
+/speckit.plan  
+以下は「PhotoStream」プロジェクトの実装計画（HOW）です。  
+仕様書（/speckit.specify）で定義された「WHAT」をもとに、どのように構築・運用するかを明確にします。
+
+---
+# 実装計画 (HOW)
+## 1. 技術スタックおよびバージョン  
+- 言語／フレームワーク：
+  - フロントエンド：React 18 + TypeScript 5 + Vite 6  
+  - バックエンド：Node.js 20 + Express  
+  - ORM／DB：Prisma + SQLite（ローカル）、PostgreSQL（本番）  
+  - 認証：Auth.js（旧NextAuth） + JWT  
+- 採用理由：  
+  - React はコンポーネント再利用性が高く、パフォーマンス最適化しやすい。  
+  - Prisma により型安全なDBアクセスを実現でき、開発効率が高い。  
+  - SQLite→PostgreSQLへの切替が容易で、ローカル開発から本番環境までシームレス。
+
+---
+
+## 2. アーキテクチャ概要  
+- 三層構造：  
+  1. **フロント層**（React + TailwindCSS）  
+  2. **API層**（Express REST API）  
+  3. **データ層**（Prisma ORM → PostgreSQL）  
+- データフロー：  
+  ユーザー → React UI → API経由でアップロード／メタデータ登録 → DB保存。  
+  クライアントはキャッシュ（SWR）でレスポンスを高速化。  
+- 主な通信：  
+  - `/api/photos`: 画像のアップロード・取得・削除  
+  - `/api/albums`: アルバム作成・取得・共有設定  
+
+---
+
+## 3. ファイル・ディレクトリ構成案  
+/frontend
+├─ src/
+│ ├─ components/
+│ ├─ pages/
+│ ├─ hooks/
+│ ├─ utils/
+│ └─ types/
+├─ public/
+└─ vite.config.ts
+
+/backend
+├─ src/
+│ ├─ api/
+│ ├─ services/
+│ ├─ prisma/
+│ ├─ middlewares/
+│ └─ tests/
+├─ prisma/schema.prisma
+└─ package.json
+- `components/`: 再利用可能なUIコンポーネント  
+- `services/`: 業務ロジック層（DBアクセス含む）  
+- `middlewares/`: 認証・ログ出力・エラー処理  
+- `tests/`: Jest による単体・結合テスト
+
+---
+
+## 4. テスト戦略と品質保証  
+- テストレベル：  
+  - 単体テスト（Jest + React Testing Library）  
+  - 結合テスト（Supertest + Mock DB）  
+  - E2Eテスト（Playwright）  
+- カバレッジ目標：主要モジュール 85%以上  
+- CI/CD：GitHub Actionsでテスト・Lint・型チェックを自動実行し、`main`ブランチへのマージ条件とする。
+
+---
+
+## 5. 非機能要件  
+| 項目 | 目標値 | 補足 |
+|------|--------|------|
+| パフォーマンス | 初回ロード2秒以内 | 画像は遅延読み込み |
+| セキュリティ | OWASP Top10に準拠 | JWT署名・CSRF防止 |
+| 可用性 | 稼働率99.9% | 冗長構成（PostgreSQL） |
+| 拡張性 | 新機能追加時に主要ファイル改修5点以内 | モジュール分離設計 |
+
+リスク：画像アップロード容量増加によるコスト上昇  
+対策：S3等の外部ストレージ移行を見据えた抽象化レイヤを導入。
+
+---
+
+## 6. マイルストーン／リリース計画  
+| フェーズ | 内容 | 完了条件 |
+|-----------|------|-----------|
+| α版 | ローカルアップロード・閲覧機能 | テスト通過・主要画面動作確認 |
+| β版 | アルバム共有・ユーザー認証追加 | 社内テスト完了 |
+| v1.0 | 本番リリース | 本番環境デプロイ・モニタリング稼働 |
+
+---
+
+## 7. 依存関係と制約  
+- 外部サービス：Cloudinary（画像圧縮）・Auth.js（認証）・GitHub Actions（CI）  
+- 制約：  
+  - 予算制限により初期は無料枠内インフラを利用（Render/Neon）。  
+  - 機密データは保存禁止（デモ用アプリのため）。  
+
+---
+
+## 8. 展開・運用計画  
+- 環境：  
+  - 開発：ローカル（Docker Compose）  
+  - ステージング：Render (PostgreSQL + Node.js)  
+  - 本番：AWS EC2 + RDS + S3  
+- モニタリング：Prometheus + Grafana  
+- 障害対応：GitHub Issuesに即時登録 → Slack通知
+
+---
+
+## 9. 優先度／トレードオフ  
+- 優先度:  
+  - Must: 写真アップロード・閲覧・削除機能  
+  - Should: アルバム共有・コメント機能  
+  - Nice to have: AI自動タグ付け  
+- トレードオフ:  
+  - Next.js採用も検討したが、Vite構成が軽量かつCDN配信と相性が良いため採用。  
+  - 初期段階ではGraphQLを採用せず、REST APIで構築。
+
+---
+
+この計画は `/speckit.tasks` に渡され、各機能単位のタスク分解と実装順序策定に利用します。
